@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streak Bantu Garuk Pala Kucing</title>
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Titan+One&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-titan {
+            font-family: 'Titan One', cursive;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+
+<body class="paw-bg w-full max-w-md mx-auto text-gray-800 flex items-center justify-center min-h-screen">
+<style>
+    .paw-bg {
+        background-image: url('bakcground.png');
+        background-size: cover;
+        background-position: center;
+    }
+</style>
+    <div class="w-full max-w-md mx-auto p-4 text-center">
+
+        <!-- Header Title -->
+        <h1 class="font-titan text-4xl md:text-5xl text-orange-500 text-stroke-2">
+            Bantu Garuk Pala Kucing
+        </h1>
+
+        <div class="my-8 flex justify-center">
+            <div style="width:300px; height:300px; display:flex; align-items:center; justify-content:center; border-radius:1.5rem;">
+            <img src="kuching.png" 
+             alt="Seekor kucing menunggu untuk digaruk"
+             style="max-width:100%; max-height:100%; object-fit:contain;">
+            </div>
+        </div>
+
+        <!-- Streak Display -->
+        <div class="my-8">
+            <p class="font-titan text-lg text-pink-500 font-semibold">Streak bantu garuk pala kucing</p>
+            <div class="flex items-center justify-center gap-3 mt-1">
+                <img id="streak-fire" src="streak.png" class="w-35 h-32 rounded-full hidden" alt="Streak Fire">
+                <p class="font-titan text-6xl text-red-500" id="streak-counter">0 HARI</p>
+            </div>
+        </div>
+
+        <!-- Action Button -->
+        <button id="upload-button" class="font-titan bg-orange-500 hover:bg-orange-600 text-white text-2xl py-4 px-12 rounded-full shadow-lg transform hover:scale-105 transition-transform duration-300">
+            Absen hari ini
+        </button>
+        <input type="file" id="image-upload-input" class="hidden" accept="image/*">
+        
+        <p id="status-text" class="mt-4 text-gray-500 h-6"></p>
+
+        <!-- Reset Button (New) -->
+        <div class="mt-8">
+             <button id="reset-button" class="text-xs text-gray-400 hover:text-red-500 hover:underline">Mulai dari awal</button>
+        </div>
+    </div>
+
+    <!-- Modal for Messages -->
+    <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div id="modal-content" class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full modal-fade-in">
+            <div id="modal-icon" class="text-6xl mb-4"></div>
+            <h2 id="modal-title" class="text-3xl font-titan mb-2"></h2>
+            <p id="modal-message" class="text-gray-600 mb-6"></p>
+            <button id="modal-close-button" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-6 rounded-lg">Tutup</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM ELEMENT REFERENCES ---
+        const streakCounterElement = document.getElementById('streak-counter');
+        const streakFireElement = document.getElementById('streak-fire');
+        const uploadButton = document.getElementById('upload-button');
+        const imageUploadInput = document.getElementById('image-upload-input');
+        const statusText = document.getElementById('status-text');
+        const resetButton = document.getElementById('reset-button');
+        const previewImage = document.getElementById('preview-image');
+
+        // Modal elements
+        const messageModal = document.getElementById('message-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseButton = document.getElementById('modal-close-button');
+        const modalConfirmButton = document.getElementById('modal-confirm-button');
+
+        let session;
+        let streakCount = 0;
+        let lastSubmissionDate = '';
+
+        // Model initialization
+        const model_input_size = 224;
+        const prediction_threshold = 0.5;
+        const model_path = './garukkucingv4.onnx';
+
+        async function loadModel() {
+            statusText.textContent = 'Loading...';
+            uploadButton.disabled = true;
+            try {
+                ort.env.wasm.wasmPaths = 'https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/';
+                session = await ort.InferenceSession.create(model_path);
+                statusText.textContent = 'Monggo...';
+                uploadButton.disabled = false;
+            } catch (error) {
+                console.error('Error loading model:', error);
+                statusText.textContent = 'AI-nya lagi pusing, coba refresh halaman ini.';
+                uploadButton.disabled = true;
+            }
+        }
+
+        // processing
+        async function predictImage(image) {
+            statusText.textContent = 'Hmm emang iya lagi garuk pala kucing?';
+
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(image);
+            await new Promise(resolve => img.onload = resolve);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = model_input_size;
+            canvas.height = model_input_size;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, model_input_size, model_input_size);
+            const imageData = ctx.getImageData(0, 0, model_input_size, model_input_size);
+
+            // Fix: Create tensor in correct NHWC format (batch, height, width, channels)
+            const tensorData = new Float32Array(model_input_size * model_input_size * 3);
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                const pixelIndex = i / 4;
+                tensorData[pixelIndex * 3] = imageData.data[i] / 255.0;       // R
+                tensorData[pixelIndex * 3 + 1] = imageData.data[i + 1] / 255.0; // G
+                tensorData[pixelIndex * 3 + 2] = imageData.data[i + 2] / 255.0; // B
+            }
+        
+            const inputTensor = new ort.Tensor('float32', tensorData, [1, model_input_size, model_input_size, 3]);
+        
+            // Run inference
+            const inputName = session.inputNames[0];
+            const feeds = { [inputName]: inputTensor };
+            const results = await session.run(feeds);
+
+            // Get the output score
+            const outputName = session.outputNames[0];
+            const predictionValue = results[outputName].data[0];
+        
+            // Clean up
+            URL.revokeObjectURL(img.src);
+        
+            return predictionValue;
+        }
+
+        async function handleImageSelection(image){
+            if (!image) return;
+
+            if (lastSubmissionDate === getTodayDateString()) {
+                showModal('warning', 'Jangan terburu-buru', 'Kamu sudah absen hari ini!');
+                return;
+            }
+
+            uploadButton.disabled = true;
+
+            try{
+                const predictionValue = await predictImage(image);
+                const isSuccess = predictionValue >= prediction_threshold;
+                console.log('Prediction value:', predictionValue);
+                statusText.textContent = `Prediction: ${predictionValue.toFixed(4)}`;
+
+                if (isSuccess) {
+                    streakCount++;
+                    lastSubmissionDate = getTodayDateString();
+                    localStorage.setItem('streakCount', streakCount);
+                    localStorage.setItem('lastSubmissionDate', lastSubmissionDate);
+                    showModal('success', 'Berhasil!', `Kamu sudah membantu kucing selama ${streakCount} hari. Meng love you.`);
+                } else {
+                    localStorage.setItem('streakCount', streakCount);
+                    showModal('failure', 'Gagal!', 'Hmmm boong yah kamu yah');
+                }
+            } catch (error){
+                console.error("Prediction error", error);
+                showModal('failure', 'Gagal!', 'AI-nya lagi pusing, salahin elon musk.');
+            } finally {
+                setTimeout(()=>{
+                    statusText.textContent = '';
+                }, 3000);
+                updateUI();
+                checkIfAlreadySubmittedToday();
+            }
+        }
+
+        function getTodayDateString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        function initializeApp() {
+            // use local browser storage for progress
+            streakCount = parseInt(localStorage.getItem('streakCount')) || 0;
+            lastSubmissionDate = localStorage.getItem('lastSubmissionDate') || '';
+            
+            updateUI();
+            checkIfAlreadySubmittedToday();
+            loadModel();
+        }
+
+        function updateUI() {
+            streakCounterElement.textContent = `${streakCount} HARI`;
+            if (streakCount >= 3) {
+                streakFireElement.classList.remove('hidden');
+            } else {
+                streakFireElement.classList.add('hidden');
+            }
+        }
+
+        function checkIfAlreadySubmittedToday() {
+            const isSubmitted = lastSubmissionDate === getTodayDateString();
+            uploadButton.textContent = isSubmitted ? 'Sudah Absen!' : 'Absen hari ini';
+            uploadButton.disabled = isSubmitted || !session;
+            uploadButton.classList.toggle('bg-green-500', isSubmitted);
+            uploadButton.classList.toggle('cursor-not-allowed', isSubmitted);
+            uploadButton.classList.toggle('bg-orange-500', !isSubmitted);
+            uploadButton.classList.toggle('hover:bg-orange-600', !isSubmitted);
+        }
+
+        // --- MODAL LOGIC ---
+        function showModal(type, title, message) {
+            const successColor = 'text-green-500';
+            const failureColor = 'text-red-500';
+            const warningColor = 'text-yellow-500';
+            
+            let icon = '';
+            let color = '';
+            
+            switch(type) {
+                case 'success':
+                    modalIcon.innerHTML = '<img src="menglove.png" alt="Success" style="width:256px;height:256px;display:inline-block;">';
+                    color = successColor;
+                    break;
+                case 'failure':
+                    icon = '😿';
+                    color = failureColor;
+                    modalIcon.textContent = icon;
+                    break;
+                case 'warning':
+                    icon = '✋';
+                    color = warningColor;
+                    modalIcon.textContent = icon;
+                    break;
+            }
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modalTitle.className = `text-3xl font-titan mb-2 ${color}`;
+            
+            messageModal.classList.remove('hidden');
+        }
+
+        function hideModal() {
+            messageModal.classList.add('hidden');
+        }
+
+        function resetProgress() {
+            if (confirm("Yakin mau mulai streak dari awal?")) {
+                streakCount = 0;
+                lastSubmissionDate = '';
+                localStorage.removeItem('streakCount');
+                localStorage.removeItem('lastSubmissionDate');
+                updateUI();
+                checkIfAlreadySubmittedToday();
+                // Show confirmation
+                statusText.textContent = 'Progress berhasil direset!';
+                setTimeout(() => statusText.textContent = '', 3000);
+            }
+        }
+        // --- EVENT LISTENERS ---
+        uploadButton.addEventListener('click', () => {
+            imageUploadInput.click();
+        });
+
+        imageUploadInput.addEventListener('change', (event) => {
+            if (event.target.files && event.target.files[0]) {
+                handleImageSelection(event.target.files[0]);
+            }
+        });
+
+        resetButton.addEventListener('click', resetProgress);
+
+        modalCloseButton.addEventListener('click', hideModal);
+        messageModal.addEventListener('click', (event) => {
+            // Close modal if clicking on the background overlay
+            if (event.target === messageModal) {
+                hideModal();
+            }
+        });
+
+        // --- START THE APP ---
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+</body>
+</html>
