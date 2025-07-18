@@ -180,7 +180,6 @@
                 const predictionValue = await predictImage(image);
                 const isSuccess = predictionValue >= prediction_threshold;
                 console.log('Prediction value:', predictionValue);
-                statusText.textContent = `Prediction: ${predictionValue.toFixed(4)}`;
 
                 if (isSuccess) {
                     streakCount++;
