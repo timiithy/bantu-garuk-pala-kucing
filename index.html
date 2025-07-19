@@ -35,8 +35,6 @@
     }
 </style>
     <div class="w-full max-w-md mx-auto p-4 text-center">
-
-        <!-- Header Title -->
         <h1 class="font-titan text-4xl md:text-5xl text-orange-500 text-stroke-2">
             Bantu Garuk Pala Kucing
         </h1>
@@ -49,7 +47,6 @@
             </div>
         </div>
 
-        <!-- Streak Display -->
         <div class="my-8">
             <p class="font-titan text-lg text-pink-500 font-semibold">Streak bantu garuk pala kucing</p>
             <div class="flex items-center justify-center gap-3 mt-1">
@@ -58,7 +55,6 @@
             </div>
         </div>
 
-        <!-- Action Button -->
         <button id="upload-button" class="font-titan bg-orange-500 hover:bg-orange-600 text-white text-2xl py-4 px-12 rounded-full shadow-lg transform hover:scale-105 transition-transform duration-300">
             Absen hari ini
         </button>
@@ -66,13 +62,11 @@
         
         <p id="status-text" class="mt-4 text-gray-500 h-6"></p>
 
-        <!-- Reset Button (New) -->
         <div class="mt-8">
              <button id="reset-button" class="text-xs text-gray-400 hover:text-red-500 hover:underline">Mulai dari awal</button>
         </div>
     </div>
 
-    <!-- Modal for Messages -->
     <div id="message-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
         <div id="modal-content" class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full modal-fade-in">
             <div id="modal-icon" class="text-6xl mb-4"></div>
@@ -83,7 +77,6 @@
     </div>
 
     <script>
-        // --- DOM ELEMENT REFERENCES ---
         const streakCounterElement = document.getElementById('streak-counter');
         const streakFireElement = document.getElementById('streak-fire');
         const uploadButton = document.getElementById('upload-button');
@@ -92,7 +85,6 @@
         const resetButton = document.getElementById('reset-button');
         const previewImage = document.getElementById('preview-image');
 
-        // Modal elements
         const messageModal = document.getElementById('message-modal');
         const modalContent = document.getElementById('modal-content');
         const modalIcon = document.getElementById('modal-icon');
@@ -151,16 +143,12 @@
         
             const inputTensor = new ort.Tensor('float32', tensorData, [1, model_input_size, model_input_size, 3]);
         
-            // Run inference
             const inputName = session.inputNames[0];
             const feeds = { [inputName]: inputTensor };
             const results = await session.run(feeds);
 
-            // Get the output score
             const outputName = session.outputNames[0];
             const predictionValue = results[outputName].data[0];
-        
-            // Clean up
             URL.revokeObjectURL(img.src);
         
             return predictionValue;
@@ -212,7 +200,6 @@
         }
 
         function initializeApp() {
-            // use local browser storage for progress
             streakCount = parseInt(localStorage.getItem('streakCount')) || 0;
             lastSubmissionDate = localStorage.getItem('lastSubmissionDate') || '';
             
@@ -240,7 +227,6 @@
             uploadButton.classList.toggle('hover:bg-orange-600', !isSubmitted);
         }
 
-        // --- MODAL LOGIC ---
         function showModal(type, title, message) {
             const successColor = 'text-green-500';
             const failureColor = 'text-red-500';
@@ -289,7 +275,6 @@
                 setTimeout(() => statusText.textContent = '', 3000);
             }
         }
-        // --- EVENT LISTENERS ---
         uploadButton.addEventListener('click', () => {
             imageUploadInput.click();
         });
@@ -304,13 +289,11 @@
 
         modalCloseButton.addEventListener('click', hideModal);
         messageModal.addEventListener('click', (event) => {
-            // Close modal if clicking on the background overlay
             if (event.target === messageModal) {
                 hideModal();
             }
         });
 
-        // --- START THE APP ---
         document.addEventListener('DOMContentLoaded', initializeApp);
 
     </script>
